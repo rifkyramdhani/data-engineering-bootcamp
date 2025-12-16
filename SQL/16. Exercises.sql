@@ -96,3 +96,115 @@ FROM (
 ) sub
 WHERE rn = 1;
 
+/*
+You are analyzing API performance from the api_logs table, which records service_name, response_time_ms, and timestamp. Calculate the 95th percentile of API response time in milliseconds for each service. Return service_name, and 95th_percentile_response_time_ms. 
+
+Assumptions:
+- The api_logs table contains service_name, response_time_ms (numeric), and timestamp (datetime).
+- Calculate percentiles per service independently.
+- Percentiles rounded to two decimal places for reporting.
+
+Sample Input:
+service_name	response_time_ms	timestamp
+user_service	13.24	2025-10-21 14:32:45
+auth_service	274.36	2025-10-23 09:18:12
+payment_service	8.63	2025-10-22 11:05:33
+search_service	173.50	2025-10-20 18:45:50
+notification_service	45.56	2025-10-24 22:10:20
+
+Sample Output:
+service_name	95th_percentile_response_time_ms
+auth_service	298.72
+notification_service	228.14
+payment_service	253.69
+search_service	286.03
+user_service	267.58
+
+Explanation:
+Group the API logs by each service_name.
+Compute the 95th percentile of response_time_ms per group.
+The 95th percentile captures the high-response-time boundary, useful for performance analysis.
+Return service names alongside their 95th percentile response time.
+ */
+
+  WITH ranked AS (SELECT
+    service_name,
+    response_time_ms,
+    ROW_NUMBER() OVER (PARTITION BY service_name ORDER BY response_time_ms) AS rn,
+    COUNT(*) OVER (PARTITION BY service_name) AS total_count
+  FROM api_logs
+  )
+  SELECT service_name,
+    ROUND(MAX(CASE WHEN rn = CEIL(0.95 * total_count) THEN response_time_ms END), 2) AS 95th_percentile_response_time_ms
+FROM ranked
+GROUP BY service_name;
+
+/*
+ You are analyzing user login behavior for a software platform. The user_logins table records user_id and login_date. Your task is to find each user's longest consecutive login streak, returning its user_id, start_date, end_date, and streak_length.
+
+Assumptions:
+- The table user_logins stores daily login events per user.
+- Consecutive logins are continuous days without gaps.
+- The longest streak per user is the maximum number of consecutive login days.
+- If multiple longest streaks exist, return any one.
+
+Sample Input:
+user_id	login_date
+user_31	2025-09-18
+user_4	2025-10-11
+user_5	2025-10-01
+user_41	2025-09-10
+user_31	2025-09-09
+
+Sample Output:
+user_id	start_date	end_date	streak_length
+user_31	2025-09-07	2025-09-15	9
+user_4	2025-10-01	2025-10-06	6
+user_5	2025-09-20	2025-09-28	9
+
+Explanation:
+Identify consecutive login days for each user.
+Calculate the length of each consecutive streak.
+Return the longest streak's start date, end date, and length per user.
+If multiple longest streaks per user exist, return any one.
+ */
+
+WITH NumberedLogins AS (
+    SELECT
+        user_id,
+        login_date,
+        ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY login_date) AS seq_num
+    FROM user_logins
+),
+ConsecutiveGroups AS (
+    SELECT
+        user_id,
+        login_date,
+        DATE_SUB(login_date, INTERVAL seq_num DAY) AS grp
+    FROM NumberedLogins
+),
+Streaks AS (
+    SELECT
+        user_id,
+        MIN(login_date) AS start_date,
+        MAX(login_date) AS end_date,
+        COUNT(*) AS streak_length
+    FROM ConsecutiveGroups
+    GROUP BY user_id, grp
+),
+LongestStreaks AS (
+    SELECT
+        user_id,
+        start_date,
+        end_date,
+        streak_length,
+        ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY streak_length DESC, start_date) AS rnk
+    FROM Streaks
+)
+SELECT
+    user_id,
+    start_date,
+    end_date,
+    streak_length
+FROM LongestStreaks
+WHERE rnk = 1;
