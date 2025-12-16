@@ -208,3 +208,98 @@ SELECT
     streak_length
 FROM LongestStreaks
 WHERE rnk = 1;
+
+/*
+You are a data engineer at a manufacturing company. Your monthly_revenue table has month and total_revenue, which records monthly business revenue. Calculate the month-over-month (MoM) revenue growth percentage. Your output should show month, current_revenue, prev_revenue, and growth_pct.
+
+Assumptions:
+- The monthly_revenue table consists of month and total_revenue columns.
+- Months are formatted as YYYY-MM.
+- The previous month’s revenue may be NULL for the first row.
+- growth_pct should be rounded to two decimals.
+
+Sample Input:
+month	total_revenue
+2025-02	557319
+2024-06	1093695
+2025-01	1006245
+2024-08	1174297
+2024-04	761600
+
+Sample Output:
+month	total_revenue	prev_revenue	growth_pct
+2025-06	929344	827053	null
+2025-07	849155	929344	-8.63
+2025-08	1168898	849155	37.65
+2025-09	627417	1168898	-46.29
+2025-10	1012893	627417	61.47
+
+Explanation:
+Use window functions to get the previous month's revenue for each row.
+Calculate MoM growth %: ((current revenue - previous revenue) / previous revenue) * 100.
+*/
+
+WITH AA AS (SELECT 
+    month,
+    total_revenue,
+    ROW_NUMBER() OVER(ORDER BY month) AS rn
+FROM monthly_revenue
+), BB AS (
+    SELECT
+        month,
+        total_revenue,
+        rn,
+        rn + 1 AS rn_plus_1
+    FROM AA
+) SELECT 
+A.month,
+A.total_revenue, 
+B.total_revenue AS prev_revenue,
+ROUND(((A.total_revenue - B.total_revenue) / B.total_revenue) * 100,2) AS growth_pct
+FROM BB A
+LEFT JOIN BB B ON A.rn = B.rn_plus_1
+
+/*
+You manage a hotel booking system. The bookings table contains columns room_id, guest_id, checkin_date, and checkout_date. Your task is to find overlapping bookings for the same room, i.e., detect double bookings using interval join logic. Return room_id, guest1_id, guest1_checkin, guest1_checkout, guest2_id, guest2_checkin, and guest2_checkout.
+
+Assumptions:
+- The bookings table records check-in and check-out dates per guest per room.
+- Bookings overlap if their date intervals intersect (checkin < other checkout AND other checkin < checkout).
+- Guests can have multiple bookings.
+
+Sample Input:
+room_id	guest_id	checkin_date	checkout_date
+room_6	guest_70	2025-09-21	2025-10-01
+room_20	guest_87	2025-09-11	2025-09-19
+room_12	guest_15	2025-10-02	2025-10-11
+room_7	guest_52	2025-09-11	2025-09-19
+room_3	guest_44	2025-09-28	2025-10-05
+
+Sample Output:
+room_id	guest1_id	guest1_checkin	guest1_checkout	guest2_id	guest2_checkin	guest2_checkout
+room_6	guest_70	2025-09-21	2025-10-01	guest_19	2025-09-25	2025-09-30
+room_12	guest_15	2025-10-02	2025-10-11	guest_66	2025-10-07	2025-10-10
+room_19	guest_90	2025-09-05	2025-09-11	guest_23	2025-09-08	2025-09-12
+room_3	guest_44	2025-09-28	2025-10-05	guest_39	2025-10-01	2025-10-06
+room_17	guest_51	2025-09-22	2025-09-29	guest_75	2025-09-25	2025-10-02
+
+Explanation:
+Identify pairs of bookings for the same room but different guests.
+Check where booking intervals overlap: (checkin_date < other.checkout_date) AND (other.checkin_date < checkout_date).
+Exclude self-joins and duplicate pairs.
+*/
+
+SELECT
+    A.room_id,
+    A.guest_id AS guest1_id,
+    A.checkin_date AS guest1_checkin,
+    A.checkout_date AS guest1_checkout,
+    B.guest_id AS guest2_id,
+    B.checkin_date AS guest2_checkin,
+    B.checkout_date AS guest2_checkout
+FROM bookings A
+JOIN bookings B ON A.room_id = B.room_id
+    AND B.checkin_date < A.checkout_date 
+    AND A.checkin_date < B.checkout_date 
+    AND A.guest_id <> B.guest_id 
+WHERE a.guest_id < b.guest_id
