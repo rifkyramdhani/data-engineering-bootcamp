@@ -303,3 +303,41 @@ JOIN bookings B ON A.room_id = B.room_id
     AND A.checkin_date < B.checkout_date 
     AND A.guest_id <> B.guest_id 
 WHERE a.guest_id < b.guest_id
+
+/*
+You are a data analyst at a retail analytics company. Using the transactions table, which contains user_id, tx_date, and amount, identify user cohorts based on their first transaction month and calculate their weekly retention rate.For each cohort (signup month), show the percentage of active users per week since signup (Week 0, Week 1, Week 2, etc.). Return signup_month, W0, W1, W2, W3, W4, W5(with 2 decimals). 
+
+
+Display the results ordered by signup_month Desc.
+
+Assumptions:
+- The transactions table contains user_id, tx_date, and amount.
+- Each user’s first transaction month defines their cohort (signup month).
+- Weeks are calculated relative to the signup month start date.
+- Retention percentage shows the share of cohort users active in each week.
+- Week 0 represents the signup week; later weeks increase sequentially.
+
+Sample Input:
+user_id	tx_date	amount
+user_132	2025-06-14	265.34
+user_27	2025-06-03	154.92
+user_79	2025-07-30	48.17
+user_105	2025-06-23	75.43
+user_86	2025-06-15	210.88
+
+Sample Output:
+signup_month	W0	W2	W2	W3	W4	W5
+2025-09	100.0	59.12	43.59	25.34	12.68	6.79
+2025-08	100.0	50.25	32.25	18.75	10.0	5.0
+2025-07	100.0	45.80	29.85	17.42	8.09	4.05
+2025-06	100.0	52.22	35.37	22.67	11.20	5.60
+2025-05	100.0	48.67	30.15	17.01	9.08	4.55
+
+Explanation:
+Assign each user to a signup month cohort based on their signup date.
+Calculate the week number for each transaction relative to the signup month start.
+Count unique active users per signup cohort per week.
+Calculate retention percentages by dividing active users by cohort size.
+Pivot retention percentages to form a cohort retention table with weeks as columns.
+*/
+
