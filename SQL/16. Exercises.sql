@@ -341,3 +341,49 @@ Calculate retention percentages by dividing active users by cohort size.
 Pivot retention percentages to form a cohort retention table with weeks as columns.
 */
 
+WITH first_tx AS (
+    SELECT
+        user_id,
+        MIN(tx_date) AS first_tx_date
+    FROM transactions
+    GROUP BY user_id
+),
+cohort_data AS (
+    SELECT
+        t.user_id,
+        DATE_FORMAT(f.first_tx_date, '%Y-%m') AS signup_month,
+        f.first_tx_date,
+        t.tx_date,
+        FLOOR(DATEDIFF(t.tx_date, f.first_tx_date) / 7) AS week_number
+    FROM transactions t
+    JOIN first_tx f ON t.user_id = f.user_id
+    WHERE t.tx_date >= f.first_tx_date
+),
+cohort_counts AS (
+    SELECT
+        signup_month,
+        COUNT(DISTINCT user_id) AS total_users
+    FROM cohort_data
+    WHERE week_number = 0
+    GROUP BY signup_month
+),
+weekly_retention AS (
+    SELECT
+        signup_month,
+        week_number,
+        COUNT(DISTINCT user_id) AS active_users
+    FROM cohort_data
+    GROUP BY signup_month, week_number
+)
+SELECT
+    w.signup_month,
+    ROUND(100 * MAX(CASE WHEN week_number = 0 THEN active_users END) / c.total_users, 2) AS W0,
+    ROUND(100 * MAX(CASE WHEN week_number = 1 THEN active_users END) / c.total_users, 2) AS W1,
+    ROUND(100 * MAX(CASE WHEN week_number = 2 THEN active_users END) / c.total_users, 2) AS W2,
+    ROUND(100 * MAX(CASE WHEN week_number = 3 THEN active_users END) / c.total_users, 2) AS W3,
+    ROUND(100 * MAX(CASE WHEN week_number = 4 THEN active_users END) / c.total_users, 2) AS W4,
+    ROUND(100 * MAX(CASE WHEN week_number = 5 THEN active_users END) / c.total_users, 2) AS W5
+FROM weekly_retention w
+JOIN cohort_counts c ON w.signup_month = c.signup_month
+GROUP BY w.signup_month
+ORDER BY w.signup_month DESC;
