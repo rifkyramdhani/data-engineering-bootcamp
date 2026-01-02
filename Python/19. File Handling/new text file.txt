@@ -1,0 +1,6 @@
+This is line 1 in new file
+This is line 2 in new file
+This is line 3 in new file
+This is line 4 in new file
+This is line 4 in new file
+This is line 5 in new file
